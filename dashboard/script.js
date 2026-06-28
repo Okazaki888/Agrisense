@@ -32,12 +32,32 @@ const $ = id => document.getElementById(id);
 
 // ─── Fetch data (Dynamic IP resolution) ──────────────────
 async function fetchData() {
-  const candidates = state.activeApiUrl 
-    ? [state.activeApiUrl] 
-    : (window.location.protocol.startsWith('http') 
-        ? [window.location.origin + '/data', 'http://sprinkler.local/data'] 
-        : ['http://sprinkler.local/data', 'http://localhost:5000/data']);
+  const candidates = [];
   
+  // 1. Stored Custom IP
+  const customIp = localStorage.getItem('esp32_custom_ip');
+  if (customIp) {
+    let cleanIp = customIp.trim();
+    if (!cleanIp.startsWith('http')) cleanIp = 'http://' + cleanIp;
+    if (!cleanIp.endsWith('/data')) cleanIp = cleanIp.replace(/\/+$/, '') + '/data';
+    candidates.push(cleanIp);
+  }
+
+  // 2. Active Working URL
+  if (state.activeApiUrl && !candidates.includes(state.activeApiUrl)) {
+    candidates.push(state.activeApiUrl);
+  }
+
+  // 3. Current Host Origin (if served by ESP32 or server)
+  if (window.location.protocol.startsWith('http')) {
+    const originUrl = window.location.origin + '/data';
+    if (!candidates.includes(originUrl)) candidates.push(originUrl);
+  }
+
+  // 4. Fallback mDNS & Default Gateways
+  const fallbacks = ['http://sprinkler.local/data', 'http://192.168.1.1/data', 'http://localhost:5000/data'];
+  fallbacks.forEach(f => { if (!candidates.includes(f)) candidates.push(f); });
+
   let success = false;
 
   for (const url of candidates) {
@@ -60,7 +80,7 @@ async function fetchData() {
       
       try {
         const host = new URL(url, window.location.href).hostname;
-        $('ip-badge').textContent = host || 'sprinkler.local';
+        $('ip-badge').textContent = (host || 'sprinkler.local') + ' ⚙';
       } catch (e) {}
 
       success = true;
@@ -91,6 +111,22 @@ async function fetchData() {
 
     setStatus('offline');
     showBanners();
+  }
+}
+
+// ─── Change IP/Host Manually ──────────────────────────────
+function changeIp() {
+  const current = localStorage.getItem('esp32_custom_ip') || '';
+  const input = prompt('ระบุ IP Address หรือ Host ของ ESP32 (เช่น 192.168.137.100 หรือ sprinkler.local):', current);
+  if (input !== null) {
+    const val = input.trim();
+    if (val) {
+      localStorage.setItem('esp32_custom_ip', val);
+    } else {
+      localStorage.removeItem('esp32_custom_ip');
+    }
+    state.activeApiUrl = null;
+    fetchData();
   }
 }
 

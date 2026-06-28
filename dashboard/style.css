@@ -219,8 +219,17 @@ body::after {
   color: var(--teal-400);
   background: rgba(13,148,136,0.12);
   border: 1px solid rgba(13,148,136,0.25);
-  padding: 4px 10px;
+  padding: 4px 12px;
   border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.ip-badge:hover {
+  background: rgba(13,148,136,0.25);
+  border-color: var(--teal-400);
 }
 
 /* ══════════════════════════════════════════════
