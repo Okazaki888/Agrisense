@@ -640,7 +640,7 @@ const char* dashboard_html = R"rawliteral(<!DOCTYPE html>
     </div>
 
     <div class="header-right">
-      <span class="ip-badge" id="ip-badge">10.192.53.130</span>
+      <span class="ip-badge" id="ip-badge">sprinkler.local</span>
       <div class="status-badge connecting" id="status-badge">
         <span class="status-dot"></span>
         <span id="status-text">กำลังเชื่อมต่อ...</span>

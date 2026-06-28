@@ -2,7 +2,6 @@
 
 // ─── Config ───────────────────────────────────────────────
 const CONFIG = {
-  apiUrl:       'http://10.192.53.130/data',
   interval:     5000,
   maxRetry:     999,
   retryDelay:   5000,
@@ -20,34 +19,59 @@ const CONFIG = {
 
 // ─── State ────────────────────────────────────────────────
 let state = {
-  data:       null,
-  online:     false,
-  isMock:     false,
-  retryCount: 0,
-  timer:      null,
+  data:         null,
+  online:       false,
+  isMock:       false,
+  retryCount:   0,
+  timer:        null,
+  activeApiUrl: null
 };
 
 // ─── DOM refs ─────────────────────────────────────────────
 const $ = id => document.getElementById(id);
 
-// ─── Fetch data ───────────────────────────────────────────
+// ─── Fetch data (Dynamic IP resolution) ──────────────────
 async function fetchData() {
-  try {
-    const ctrl = new AbortController();
-    const timeout = setTimeout(() => ctrl.abort(), 4000);
-    const res = await fetch(CONFIG.apiUrl, { signal: ctrl.signal });
-    clearTimeout(timeout);
+  const candidates = state.activeApiUrl 
+    ? [state.activeApiUrl] 
+    : (window.location.protocol.startsWith('http') 
+        ? [window.location.origin + '/data', 'http://sprinkler.local/data'] 
+        : ['http://sprinkler.local/data', 'http://localhost:5000/data']);
+  
+  let success = false;
 
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = await res.json();
+  for (const url of candidates) {
+    try {
+      const ctrl = new AbortController();
+      const timeout = setTimeout(() => ctrl.abort(), 3000);
+      const res = await fetch(url, { signal: ctrl.signal });
+      clearTimeout(timeout);
 
-    state.online = true;
-    state.isMock  = false;
-    state.retryCount = 0;
-    updateUI(json);
-    setStatus('online');
-    hideBanners();
-  } catch (err) {
+      if (!res.ok) continue;
+      const json = await res.json();
+
+      state.activeApiUrl = url;
+      state.online = true;
+      state.isMock = false;
+      state.retryCount = 0;
+      updateUI(json);
+      setStatus('online');
+      hideBanners();
+      
+      try {
+        const host = new URL(url, window.location.href).hostname;
+        $('ip-badge').textContent = host || 'sprinkler.local';
+      } catch (e) {}
+
+      success = true;
+      break;
+    } catch (err) {
+      // try next candidate
+    }
+  }
+
+  if (!success) {
+    state.activeApiUrl = null;
     state.online = false;
     state.retryCount++;
 
@@ -263,12 +287,6 @@ function startPolling() {
 
 // ─── Init ─────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
-  try {
-    const urlObj = new URL(CONFIG.apiUrl, window.location.href);
-    $('ip-badge').textContent = urlObj.hostname || 'Local';
-  } catch (e) {
-    $('ip-badge').textContent = 'ESP32';
-  }
   startPolling();
 });
 
